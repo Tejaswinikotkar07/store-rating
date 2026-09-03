@@ -1,0 +1,58 @@
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  Admin
+  Normal
+  StoreOwner
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   // Validation rules: Min 20, Max 60 characters
+  email     String   @unique
+  password  String   // Hashed string
+  address   String   // Max 400 characters
+  role      Role     @default(Normal)
+  createdAt DateTime @default(now())
+
+  // Relationships
+  managedStore Store?   @relation("StoreOwner")
+  ratings      Rating[]
+}
+
+model Store {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String   // Max 400 characters
+  createdAt DateTime @default(now())
+
+  // One-to-One relation: A user with the role StoreOwner manages a store
+  ownerId   Int      @unique
+  owner     User     @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  ratings   Rating[]
+}
+
+model Rating {
+  id        Int      @id @default(autoincrement())
+  rating    Int      // Restrict between 1 and 5 in API validation
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  storeId   Int
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // Enforces that a user can only leave one rating per specific store
+  @@unique([userId, storeId])
+}
